@@ -1,29 +1,68 @@
 import { NextResponse } from 'next/server';
 
 export function middleware(request) {
-  // Get the pathname of the request
-  const path = request.nextUrl.pathname;
+  const { pathname } = request.nextUrl;
+  
+  console.log('Middleware - Checking path:', pathname);
+  
+  // Get the token from cookies
+  const token = request.cookies.get('token')?.value;
+  console.log('Middleware - Token present:', !!token);
+  
+  // Get user data from cookies
+  const userData = request.cookies.get('user')?.value;
+  let user = null;
+  
+  try {
+    user = userData ? JSON.parse(userData) : null;
+    console.log('Middleware - User data:', {
+      hasUser: !!user,
+      role: user?.role,
+      pathname
+    });
+  } catch (error) {
+    console.error('Middleware - Error parsing user data:', error);
+  }
 
-  // Define protected routes and their allowed roles
-  const protectedRoutes = {
-    '/admin': 'Admin',
-    '/client': 'Client'
-  };
+  // Public paths that don't require authentication
+  const publicPaths = ['/login', '/register', '/'];
+  
+  // Check if the path is public
+  if (publicPaths.includes(pathname)) {
+    console.log('Middleware - Public path detected');
+    // If user is already logged in, redirect to appropriate dashboard
+    if (token && user) {
+      const role = user.role?.toLowerCase();
+      console.log('Middleware - Redirecting logged-in user to dashboard:', role);
+      return NextResponse.redirect(new URL(`/dashboard/${role}`, request.url));
+    }
+    return NextResponse.next();
+  }
 
-  // Check if the current path is a protected route
-  const requiredRole = protectedRoutes[path];
-  if (requiredRole) {
-    // Get the user role from localStorage
-    const userRole = request.cookies.get('userRole')?.value;
-
-    // If no role is found, redirect to login
-    if (!userRole) {
+  // Protected paths
+  if (pathname.startsWith('/dashboard/')) {
+    console.log('Middleware - Protected path detected');
+    // If no token or user data, redirect to login
+    if (!token || !user) {
+      console.log('Middleware - No auth data, redirecting to login');
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    // If user role doesn't match required role, redirect to appropriate dashboard
-    if (userRole !== requiredRole) {
-      return NextResponse.redirect(new URL(`/${userRole.toLowerCase()}`, request.url));
+    // Extract role from pathname
+    const pathRole = pathname.split('/')[2]?.toLowerCase();
+    const userRole = user.role?.toLowerCase();
+
+    console.log('Middleware - Role check:', {
+      pathRole,
+      userRole,
+      matches: pathRole === userRole
+    });
+
+    // Check if user has access to this dashboard
+    if (pathRole !== userRole) {
+      console.log('Middleware - Role mismatch, redirecting to correct dashboard');
+      // Redirect to user's appropriate dashboard
+      return NextResponse.redirect(new URL(`/dashboard/${userRole}`, request.url));
     }
   }
 
@@ -32,5 +71,9 @@ export function middleware(request) {
 
 // Configure which paths the middleware should run on
 export const config = {
-  matcher: ['/admin/:path*', '/client/:path*']
+  matcher: [
+    '/dashboard/:path*',
+    '/login',
+    '/register',
+  ],
 }; 
