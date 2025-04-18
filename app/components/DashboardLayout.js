@@ -44,44 +44,32 @@ export default function DashboardLayout({ children }) {
     );
   }
 
-  const getRoleSpecificLinks = () => {
-    const role = user.role_type.toLowerCase();
-    const baseLinks = [
-      { name: 'Dashboard', href: `/dashboard/${role}` },
-    ];
-
+  const getRoleSpecificLinks = (user) => {
+    if (!user) return [];
+    
+    const role = user.role?.toLowerCase();
+    
     switch (role) {
-      case 'chairman':
-        return [
-          ...baseLinks,
-          { name: 'Departments', href: `/dashboard/${role}/departments` },
-          { name: 'Users', href: `/dashboard/${role}/users` },
-          { name: 'Question Papers', href: `/dashboard/${role}/papers` },
-        ];
       case 'hod':
         return [
-          ...baseLinks,
-          { name: 'Question Papers', href: `/dashboard/${role}/papers` },
-          { name: 'Exams', href: `/dashboard/${role}/exams` },
+          { name: 'Question Papers', href: '/dashboard/hod/papers' },
+          { name: 'Exams', href: '/dashboard/hod/exams' },
+          { name: 'Faculty', href: '/dashboard/hod/faculty' },
         ];
-      case 'setter':
+      case 'chairman':
         return [
-          ...baseLinks,
-          { name: 'My Papers', href: `/dashboard/${role}/papers` },
+          { name: 'Departments', href: '/dashboard/chairman/departments' },
+          { name: 'HODs', href: '/dashboard/chairman/hods' },
+          { name: 'Reports', href: '/dashboard/chairman/reports' },
         ];
-      case 'coordinator':
+      case 'faculty':
         return [
-          ...baseLinks,
-          { name: 'Exams', href: `/dashboard/${role}/exams` },
-          { name: 'Question Papers', href: `/dashboard/${role}/papers` },
-        ];
-      case 'center':
-        return [
-          ...baseLinks,
-          { name: 'Exams', href: `/dashboard/${role}/exams` },
+          { name: 'Question Papers', href: '/dashboard/faculty/papers' },
+          { name: 'Exams', href: '/dashboard/faculty/exams' },
+          { name: 'Profile', href: '/dashboard/faculty/profile' },
         ];
       default:
-        return baseLinks;
+        return [];
     }
   };
 
@@ -97,7 +85,7 @@ export default function DashboardLayout({ children }) {
                 </h1>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                {getRoleSpecificLinks().map((link) => (
+                {getRoleSpecificLinks(user).map((link) => (
                   <a
                     key={link.href}
                     href={link.href}
