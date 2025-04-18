@@ -2,73 +2,79 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../context/AuthContext';
+import { loginUser } from '../utils/GlobalAPI';
+import { setCookie } from 'cookies-next';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const router = useRouter();
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: ''
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const { login } = useAuth();
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError('');
 
     try {
-      console.log('Submitting login form with:', { 
-        username, 
-        email, 
-        password: password ? '****' : 'empty'
-      });
+      const response = await loginUser(
+        formData.username,
+        formData.email,
+        formData.password
+      );
 
-      if (!username || !email || !password) {
-        throw new Error('All fields are required');
-      }
+      if (response.success) {
+        // Set both required cookies
+        setCookie('token', response.token || 'dummy-token', {
+          maxAge: 60 * 60 * 24, // 1 day
+          path: '/'
+        });
 
-      const result = await login(username, email, password);
-      console.log('Login result:', result);
-      
-      if (result.success) {
-        const role = result.user.role?.toLowerCase();
-        console.log('User role:', role);
-        console.log('Attempting to redirect to dashboard for role:', role);
-        
-        // Handle redirection based on role
+        // Create user object with required fields
+        const userData = {
+          id: response.userId,
+          username: formData.username,
+          email: formData.email,
+          role: response.role
+        };
+
+        setCookie('user', JSON.stringify(userData), {
+          maxAge: 60 * 60 * 24, // 1 day
+          path: '/'
+        });
+
+        // Redirect based on role
+        const role = response.role.toLowerCase();
         switch (role) {
           case 'chairman':
-            console.log('Redirecting to chairman dashboard');
             router.push('/dashboard/chairman');
             break;
           case 'hod':
-            console.log('Redirecting to HOD dashboard');
             router.push('/dashboard/hod');
             break;
-          case 'setter':
-            console.log('Redirecting to setter dashboard');
-            router.push('/dashboard/setter');
-            break;
-          case 'coordinator':
-            console.log('Redirecting to coordinator dashboard');
-            router.push('/dashboard/coordinator');
-            break;
-          case 'center':
-            console.log('Redirecting to center dashboard');
-            router.push('/dashboard/center');
+          case 'faculty':
+            router.push('/dashboard/faculty');
             break;
           default:
-            console.error('Invalid role received:', role);
-            setError('Invalid user role');
+            router.push('/');
         }
       } else {
-        setError(result.error || 'Login failed. Please check your credentials.');
+        setError(response.error || 'Invalid credentials');
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.message || 'An unexpected error occurred');
+      setError('An error occurred during login');
     } finally {
       setLoading(false);
     }
@@ -82,12 +88,15 @@ export default function LoginPage() {
             Sign in to your account
           </h2>
         </div>
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="username" className="sr-only">
-                Username
-              </label>
+              <label htmlFor="username" className="sr-only">Username</label>
               <input
                 id="username"
                 name="username"
@@ -95,14 +104,12 @@ export default function LoginPage() {
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={formData.username}
+                onChange={handleChange}
               />
             </div>
             <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
+              <label htmlFor="email" className="sr-only">Email address</label>
               <input
                 id="email"
                 name="email"
@@ -110,14 +117,12 @@ export default function LoginPage() {
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={handleChange}
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
+              <label htmlFor="password" className="sr-only">Password</label>
               <input
                 id="password"
                 name="password"
@@ -125,17 +130,11 @@ export default function LoginPage() {
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={handleChange}
               />
             </div>
           </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
-              <span className="block sm:inline">{error}</span>
-            </div>
-          )}
 
           <div>
             <button

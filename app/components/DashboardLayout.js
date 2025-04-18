@@ -1,26 +1,48 @@
 'use client';
 
-import { useAuth } from '../context/AuthContext';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import Cookies from 'js-cookie';
 
 export default function DashboardLayout({ children }) {
-  const { user, logout } = useAuth();
   const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-    }
-  }, [user, router]);
+    const userData = Cookies.get('user');
+    const token = Cookies.get('token');
 
-  if (!user) {
-    return null;
-  }
+    if (!userData || !token) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      router.push('/login');
+      return;
+    }
+
+    setLoading(false);
+  }, [router]);
 
   const handleLogout = () => {
-    logout();
+    Cookies.remove('user', { path: '/' });
+    Cookies.remove('token', { path: '/' });
+    router.push('/login');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   const getRoleSpecificLinks = () => {
     const role = user.role_type.toLowerCase();

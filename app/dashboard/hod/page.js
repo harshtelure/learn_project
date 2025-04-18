@@ -1,10 +1,52 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 import DashboardLayout from '../../components/DashboardLayout';
-import { useAuth } from '../../context/AuthContext';
 
-export default function HODDashboard() {
-  const { user } = useAuth();
+export default function HodDashboard() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check for user data in cookies
+    const userData = Cookies.get('user');
+    const token = Cookies.get('token');
+
+    if (!userData || !token) {
+      console.log('No auth data found, redirecting to login');
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      
+      // Verify the user has the correct role
+      if (parsedUser.role?.toLowerCase() !== 'hod') {
+        console.log('Invalid role, redirecting to login');
+        router.push('/login');
+        return;
+      }
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      router.push('/login');
+      return;
+    }
+
+    setLoading(false);
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout>

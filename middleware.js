@@ -25,17 +25,12 @@ export function middleware(request) {
   }
 
   // Public paths that don't require authentication
-  const publicPaths = ['/login', '/register', '/'];
+  const publicPaths = ['/', '/login', '/register'];
   
   // Check if the path is public
   if (publicPaths.includes(pathname)) {
     console.log('Middleware - Public path detected');
-    // If user is already logged in, redirect to appropriate dashboard
-    if (token && user) {
-      const role = user.role?.toLowerCase();
-      console.log('Middleware - Redirecting logged-in user to dashboard:', role);
-      return NextResponse.redirect(new URL(`/dashboard/${role}`, request.url));
-    }
+    // Allow access to public pages without checking auth
     return NextResponse.next();
   }
 
@@ -72,6 +67,7 @@ export function middleware(request) {
 // Configure which paths the middleware should run on
 export const config = {
   matcher: [
+    '/',
     '/dashboard/:path*',
     '/login',
     '/register',
